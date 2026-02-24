@@ -15,8 +15,8 @@ services:
     runtime: docker
     dockerfilePath: ./docker/Dockerfile
     dockerContext: .
-    # Run in web-only mode (no scheduled analysis, no notifications)
-    startCommand: python main.py --serve-only
+    # Override Dockerfile CMD to run in web-only mode (no scheduler, no notifications)
+    dockerCommand: python main.py --serve-only
     # Render free tier: service sleeps after 15 min of inactivity
     plan: free
     healthCheckPath: /api/health
