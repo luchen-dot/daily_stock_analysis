@@ -1,2 +1,4 @@
-// 生产环境使用相对路径（同源），开发环境使用环境变量或默认本地地址
-export const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://127.0.0.1:8000');
+// Use relative paths so every request (including EventSource for SSE) goes
+// through the same origin. In dev, Vite proxies /api → http://127.0.0.1:8000.
+// Override with VITE_API_URL env var when targeting a remote backend.
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '';

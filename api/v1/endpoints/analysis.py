@@ -367,8 +367,9 @@ async def task_stream():
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # 禁用 Nginx 缓冲
+            # Connection: keep-alive is HTTP/1.1 only; omitting it prevents
+            # ERR_HTTP2_PROTOCOL_ERROR when the client or a proxy uses HTTP/2.
+            "X-Accel-Buffering": "no",  # Disable Nginx/reverse-proxy buffering
         }
     )
 
