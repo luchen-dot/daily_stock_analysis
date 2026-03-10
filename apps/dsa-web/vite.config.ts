@@ -12,8 +12,17 @@ export default defineConfig({
     }),
   ],
   server: {
-    host: '0.0.0.0',  // 允许公网访问
-    port: 5173,       // 默认端口
+    host: '0.0.0.0',
+    port: 5173,
+    proxy: {
+      // Forward /api requests to the FastAPI backend in dev mode.
+      // This makes EventSource('/api/...') same-origin, avoiding CORS issues
+      // and ERR_HTTP2_PROTOCOL_ERROR on the SSE stream.
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     // 打包输出到项目根目录的 static 文件夹

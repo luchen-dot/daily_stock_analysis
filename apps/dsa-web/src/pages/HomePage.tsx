@@ -41,8 +41,16 @@ const HomePage: React.FC = () => {
   const [activeTasks, setActiveTasks] = useState<TaskInfo[]>([]);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
-  // 用于跟踪当前分析请求，避免竞态条件
+  // Track current analysis request to avoid race conditions
   const analysisRequestIdRef = useRef<number>(0);
+
+  // Always-current fetchHistory reference for use inside polling closures
+  const fetchHistoryRef = useRef(fetchHistory);
+  useEffect(() => { fetchHistoryRef.current = fetchHistory; });
+
+  // Map of taskId → interval handle for polling fallback; cleared on unmount
+  const activePollingRef = useRef(new Map<string, ReturnType<typeof setInterval>>());
+  useEffect(() => () => { activePollingRef.current.forEach(clearInterval); }, []);
 
   // 更新任务列表中的任务
   const updateTask = useCallback((updatedTask: TaskInfo) => {
@@ -199,8 +207,34 @@ const HomePage: React.FC = () => {
         setStockCode('');
       }
 
-      // 任务已提交，SSE 会推送更新
+      // Task submitted; SSE will push updates. Also start a polling fallback
+      // so results appear even when SSE is unavailable (e.g. HTTP/2 proxies).
       console.log('Task submitted:', response.taskId);
+      const { taskId } = response;
+      let pollAttempts = 0;
+      const poll = setInterval(async () => {
+        if (++pollAttempts > 150) { // 12.5 min max
+          clearInterval(poll);
+          activePollingRef.current.delete(taskId);
+          return;
+        }
+        try {
+          const s = await analysisApi.getStatus(taskId);
+          if (s.status === 'completed' || s.status === 'failed') {
+            clearInterval(poll);
+            activePollingRef.current.delete(taskId);
+            if (s.status === 'completed') {
+              fetchHistoryRef.current();
+            } else if (s.error) {
+              setStoreError(s.error);
+            }
+          }
+        } catch {
+          clearInterval(poll);
+          activePollingRef.current.delete(taskId);
+        }
+      }, 5000);
+      activePollingRef.current.set(taskId, poll);
     } catch (err) {
       console.error('Analysis failed:', err);
       if (currentRequestId === analysisRequestIdRef.current) {
