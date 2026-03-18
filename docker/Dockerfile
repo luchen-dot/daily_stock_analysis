@@ -8,7 +8,7 @@ FROM node:20-slim AS web-builder
 WORKDIR /app/apps/dsa-web
 
 COPY apps/dsa-web/package.json apps/dsa-web/package-lock.json ./
-RUN npm ci
+RUN npm ci --registry=https://registry.npmmirror.com
 
 COPY apps/dsa-web/ ./
 RUN npm run build
@@ -22,6 +22,12 @@ WORKDIR /app
 # 设置时区为上海
 ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 切换为阿里云镜像源（解决国内网络访问 Debian 官方源失败问题）
+RUN echo "deb https://mirrors.aliyun.com/debian/ bookworm main contrib non-free non-free-firmware\n\
+deb https://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free non-free-firmware\n\
+deb https://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free non-free-firmware" \
+    > /etc/apt/sources.list
 
 # 安装系统依赖（wkhtmltopdf 含 wkhtmltoimage，用于 Markdown 转图片 Issue #289）
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -37,8 +43,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 复制依赖文件
 COPY requirements.txt .
 
-# 安装 Python 依赖
-RUN pip install --no-cache-dir -r requirements.txt
+# 安装 Python 依赖（使用阿里云 PyPI 镜像）
+RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
 
 # 复制应用代码
 COPY *.py ./
